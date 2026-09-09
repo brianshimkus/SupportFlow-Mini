@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -12,6 +13,14 @@ load_dotenv()
 app = FastAPI(title='SupportFlow Mini')
 
 DB_PATH = Path(os.getenv('SUPPORTFLOW_DB_PATH', 'supportflow.db'))
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def row_to_dict(row: sqlite3.Row) -> dict:
+    return dict(row)
 
 
 def get_db() -> sqlite3.Connection:
@@ -111,6 +120,57 @@ def mock_triage(ticket: TicketCreate) -> TriageResult:
         suggested_response='Thanks. The assigned team will review this request.',
         confidence=0.80,
     )
+
+
+@app.post('/api/tickets', status_code=201)
+def create_ticket(ticket: TicketCreate):
+    result = mock_triage(ticket)
+    now = utc_now()
+    conn = get_db()
+    cur = conn.execute(
+        """
+        INSERT INTO tickets (
+            created_at, customer_name, customer_tier, subject, description,
+            ai_category, ai_priority, ai_team, ai_summary, ai_suggested_response,
+            ai_confidence, status, delivery_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            now,
+            ticket.customer_name,
+            ticket.customer_tier,
+            ticket.subject,
+            ticket.description,
+            result.category,
+            result.priority,
+            result.team,
+            result.summary,
+            result.suggested_response,
+            result.confidence,
+            'awaiting_review',
+            'not_configured',
+        ),
+    )
+    ticket_id = cur.lastrowid
+    conn.execute(
+        """
+        INSERT INTO events (ticket_id, event_type, created_at, detail)
+        VALUES (?, ?, ?, ?)
+        """,
+        (ticket_id, 'triaged', now, result.model_dump_json()),
+    )
+    conn.commit()
+    row = conn.execute('SELECT * FROM tickets WHERE id = ?', (ticket_id,)).fetchone()
+    conn.close()
+    return row_to_dict(row)
+
+
+@app.get('/api/tickets')
+def list_tickets():
+    conn = get_db()
+    rows = conn.execute('SELECT * FROM tickets ORDER BY id DESC').fetchall()
+    conn.close()
+    return [row_to_dict(row) for row in rows]
 
 
 @app.get('/api/health')
