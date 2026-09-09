@@ -3,3 +3,4 @@
 __pycache__/
 .pytest_cache/
 supportflow.db
+.DS_Store
