@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -173,9 +173,100 @@ def list_tickets():
     return [row_to_dict(row) for row in rows]
 
 
+@app.post('/api/tickets/{ticket_id}/review')
+def review_ticket(ticket_id: int, review: TicketReview):
+    conn = get_db()
+    row = conn.execute('SELECT * FROM tickets WHERE id = ?', (ticket_id,)).fetchone()
+    if row is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail='Ticket not found')
+    if row['status'] != 'awaiting_review':
+        conn.close()
+        raise HTTPException(status_code=409, detail='Ticket already reviewed')
+    final_category = review.final_category or row['ai_category']
+    final_priority = review.final_priority or row['ai_priority']
+    final_team = review.final_team or row['ai_team']
+    final_response = review.final_response or row['ai_suggested_response']
+    now = utc_now()
+    conn.execute(
+        """
+        UPDATE tickets SET
+            status = ?,
+            approved = ?,
+            final_category = ?,
+            final_priority = ?,
+            final_team = ?,
+            final_response = ?,
+            reviewer_note = ?,
+            delivery_status = ?
+        WHERE id = ?
+        """,
+        (
+            'reviewed',
+            1 if review.approved else 0,
+            final_category,
+            final_priority,
+            final_team,
+            final_response,
+            review.reviewer_note,
+            'not_configured',
+            ticket_id,
+        ),
+    )
+    conn.execute(
+        """
+        INSERT INTO events (ticket_id, event_type, created_at, detail)
+        VALUES (?, ?, ?, ?)
+        """,
+        (ticket_id, 'reviewed', now, review.model_dump_json()),
+    )
+    conn.commit()
+    updated = conn.execute(
+        'SELECT * FROM tickets WHERE id = ?', (ticket_id,)
+    ).fetchone()
+    conn.close()
+    return row_to_dict(updated)
+
+
 @app.get('/api/health')
 def health():
     return {
         'status': 'ok',
         'ai_mode': os.getenv('AI_MODE', 'mock'),
+    }
+
+
+@app.get('/api/metrics')
+def metrics():
+    conn = get_db()
+    total = conn.execute('SELECT COUNT(*) AS n FROM tickets').fetchone()['n']
+    reviewed = conn.execute(
+        "SELECT COUNT(*) AS n FROM tickets WHERE status = 'reviewed'"
+    ).fetchone()['n']
+    approved_unchanged = conn.execute(
+        """
+        SELECT COUNT(*) AS n FROM tickets
+        WHERE status = 'reviewed'
+          AND approved = 1
+          AND final_category = ai_category
+          AND final_priority = ai_priority
+          AND final_team = ai_team
+          AND final_response = ai_suggested_response
+        """
+    ).fetchone()['n']
+    avg_row = conn.execute(
+        """
+        SELECT AVG(ai_confidence) AS avg_confidence
+        FROM tickets
+        WHERE status = 'reviewed'
+        """
+    ).fetchone()
+    conn.close()
+    agreement_rate = (approved_unchanged / reviewed) if reviewed else None
+    return {
+        'total_tickets': total,
+        'reviewed': reviewed,
+        'approved_unchanged': approved_unchanged,
+        'agreement_rate': agreement_rate,
+        'avg_confidence': avg_row['avg_confidence'],
     }
