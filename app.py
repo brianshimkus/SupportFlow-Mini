@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
 
+import httpx2
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -158,6 +159,27 @@ def triage(ticket: TicketCreate) -> TriageResult:
     return mock_triage(ticket)
 
 
+def deliver_ticket(ticket_row: sqlite3.Row) -> tuple[str, str]:
+    url = os.getenv('WEBHOOK_URL', '').strip()
+    if not url:
+        return 'not_configured', 'WEBHOOK_URL is empty'
+
+    payload = {
+        'ticket_id': ticket_row['id'],
+        'customer': ticket_row['customer_name'],
+        'category': ticket_row['final_category'],
+        'priority': ticket_row['final_priority'],
+        'team': ticket_row['final_team'],
+        'response': ticket_row['final_response'],
+    }
+    try:
+        response = httpx2.post(url, json=payload, timeout=10.0)
+        response.raise_for_status()
+        return 'delivered', f'HTTP {response.status_code}'
+    except Exception as exc:  # noqa: BLE001
+        return 'failed', str(exc)
+
+
 @app.post('/api/tickets', status_code=201)
 def create_ticket(ticket: TicketCreate):
     try:
@@ -263,6 +285,32 @@ def review_ticket(ticket_id: int, review: TicketReview):
         VALUES (?, ?, ?, ?)
         """,
         (ticket_id, 'reviewed', now, review.model_dump_json()),
+    )
+    conn.commit()
+
+    updated = conn.execute(
+        'SELECT * FROM tickets WHERE id = ?', (ticket_id,)
+    ).fetchone()
+    delivery_status, delivery_detail = deliver_ticket(updated)
+    conn.execute(
+        """
+        UPDATE tickets
+        SET delivery_status = ?, delivery_detail = ?
+        WHERE id = ?
+        """,
+        (delivery_status, delivery_detail, ticket_id),
+    )
+    conn.execute(
+        """
+        INSERT INTO events (ticket_id, event_type, created_at, detail)
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            ticket_id,
+            'delivery_attempt',
+            utc_now(),
+            json.dumps({'status': delivery_status, 'detail': delivery_detail}),
+        ),
     )
     conn.commit()
     updated = conn.execute(
