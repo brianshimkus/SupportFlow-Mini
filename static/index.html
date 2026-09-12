@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SupportFlow Mini</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main>
+      <h1>SupportFlow Mini</h1>
+      <p class="tagline">Submit → Recommend → Review → Deliver → Measure</p>
+
+      <section id="metrics" aria-label="Metrics">
+        <p>Total: <span id="metric-total">0</span></p>
+        <p>Reviewed: <span id="metric-reviewed">0</span></p>
+        <p>Agreement: <span id="metric-agreement">—</span></p>
+        <p>Avg confidence: <span id="metric-confidence">—</span></p>
+      </section>
+
+      <section id="intake" aria-label="New ticket">
+        <h2>New ticket</h2>
+        <form id="ticket-form">
+          <label>
+            Customer name
+            <input
+              name="customer_name"
+              required
+              minlength="2"
+              maxlength="80"
+              value="Northstar Labs" />
+          </label>
+          <label>
+            Tier
+            <select name="customer_tier" required>
+              <option value="standard">standard</option>
+              <option value="premium">premium</option>
+              <option value="enterprise" selected>enterprise</option>
+            </select>
+          </label>
+          <label>
+            Subject
+            <input
+              name="subject"
+              required
+              minlength="3"
+              maxlength="120"
+              value="Production API error" />
+          </label>
+          <label>
+            Description
+            <textarea
+              name="description"
+              required
+              minlength="12"
+              maxlength="4000"
+              rows="4">
+Our integration returns an error and operations is blocked.</textarea
+            >
+          </label>
+          <button type="submit">Get recommendation</button>
+        </form>
+        <p id="form-status" role="status"></p>
+      </section>
+
+      <section id="recommendation" hidden aria-label="Recommendation">
+        <h2>Recommendation</h2>
+        <p>Source: <span id="rec-source">mock</span></p>
+        <p>Category: <span id="rec-category"></span></p>
+        <p>Priority: <span id="rec-priority"></span></p>
+        <p>Team: <span id="rec-team"></span></p>
+        <p>Confidence: <span id="rec-confidence"></span></p>
+        <p>Summary: <span id="rec-summary"></span></p>
+        <p>Suggested response:</p>
+        <pre id="rec-response"></pre>
+
+        <h3>Your decision</h3>
+        <form id="review-form">
+          <input type="hidden" name="ticket_id" id="review-ticket-id" />
+          <label>
+            <input
+              type="checkbox"
+              name="approved"
+              id="review-approved"
+              checked />
+            Approve recommendation
+          </label>
+          <label>
+            Final priority (optional correction)
+            <select name="final_priority" id="review-final-priority">
+              <option value="">(keep AI)</option>
+              <option value="low">low</option>
+              <option value="medium">medium</option>
+              <option value="high">high</option>
+              <option value="urgent">urgent</option>
+            </select>
+          </label>
+          <label>
+            Reviewer note
+            <input name="reviewer_note" id="review-note" maxlength="200" />
+          </label>
+          <button type="submit">Save decision</button>
+        </form>
+        <p id="review-status" role="status"></p>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

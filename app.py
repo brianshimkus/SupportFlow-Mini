@@ -6,6 +6,8 @@ from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 load_dotenv()
@@ -13,6 +15,8 @@ load_dotenv()
 app = FastAPI(title='SupportFlow Mini')
 
 DB_PATH = Path(os.getenv('SUPPORTFLOW_DB_PATH', 'supportflow.db'))
+
+STATIC_DIR = Path(__file__).parent / 'static'
 
 
 def utc_now() -> str:
@@ -270,3 +274,11 @@ def metrics():
         'agreement_rate': agreement_rate,
         'avg_confidence': avg_row['avg_confidence'],
     }
+
+
+@app.get('/')
+def home():
+    return FileResponse(STATIC_DIR / 'index.html')
+
+
+app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
