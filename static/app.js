@@ -12,7 +12,7 @@ async function refreshMetrics() {
 
 function showRecommendation(ticket) {
   document.getElementById('recommendation').hidden = false
-  document.getElementById('rec-source').textContent = 'mock'
+  document.getElementById('rec-source').textContent = ticket.ai_source || 'mock'
   document.getElementById('rec-category').textContent = ticket.ai_category
   document.getElementById('rec-priority').textContent = ticket.ai_priority
   document.getElementById('rec-team').textContent = ticket.ai_team
