@@ -1,0 +1,57 @@
+[
+  {
+    "name": "Duplicate invoice charge",
+    "ticket": {
+      "customer_name": "Acme",
+      "customer_tier": "standard",
+      "subject": "Duplicate invoice charge",
+      "description": "I was charged twice on my last invoice and need this corrected."
+    },
+    "expected_category": "billing",
+    "expected_priority": "low"
+  },
+  {
+    "name": "Production API error",
+    "ticket": {
+      "customer_name": "Northstar Labs",
+      "customer_tier": "enterprise",
+      "subject": "Production API error",
+      "description": "Our integration returns an error and operations is blocked."
+    },
+    "expected_category": "technical",
+    "expected_priority": "high"
+  },
+  {
+    "name": "Administrator locked out",
+    "ticket": {
+      "customer_name": "Globex",
+      "customer_tier": "premium",
+      "subject": "Administrator locked out",
+      "description": "Our admin user is locked out of the account and cannot access billing settings."
+    },
+    "expected_category": "account",
+    "expected_priority": "urgent"
+  },
+  {
+    "name": "Dashboard filter request",
+    "ticket": {
+      "customer_name": "Initech",
+      "customer_tier": "standard",
+      "subject": "Dashboard filter request",
+      "description": "Please add a filter to the dashboard so we can sort by owner and date."
+    },
+    "expected_category": "feature_request",
+    "expected_priority": "low"
+  },
+  {
+    "name": "Production outage",
+    "ticket": {
+      "customer_name": "Umbrella",
+      "customer_tier": "enterprise",
+      "subject": "Production outage",
+      "description": "The product is completely down for our org and this outage is urgent for operations."
+    },
+    "expected_category": "other",
+    "expected_priority": "urgent"
+  }
+]

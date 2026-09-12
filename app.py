@@ -123,9 +123,22 @@ def mock_triage(ticket: TicketCreate) -> TriageResult:
         category, team = 'billing', 'billing'
     elif 'api' in text or 'error' in text:
         category, team = 'technical', 'engineering'
+    elif 'locked out' in text or 'login' in text or 'password' in text:
+        category, team = 'account', 'support'
+    elif 'feature' in text or 'filter' in text or 'dashboard' in text:
+        category, team = 'feature_request', 'customer_success'
+    elif 'outage' in text or 'down' in text:
+        category, team = 'other', 'support'
     else:
         category, team = 'other', 'support'
-    priority = 'high' if 'blocked' in text or 'error' in text else 'low'
+
+    if 'urgent' in text or 'outage' in text or 'locked out' in text:
+        priority = 'urgent'
+    elif 'blocked' in text or 'error' in text:
+        priority = 'high'
+    else:
+        priority = 'low'
+
     return TriageResult(
         category=category,
         priority=priority,
